@@ -1,10 +1,11 @@
-let Block = require("./components/Block");
-let Blockchain = require("./components/Blockchain");
-let Transaction = require("./components/Transaction");
-let BlockchainNode = require("./components/BlockchainNode");
+const Block = require("./components/Block");
+const Blockchain = require("./components/Blockchain");
+const Transaction = require("./components/Transaction");
+const BlockchainNode = require("./components/BlockchainNode");
+const fetch = require("node-fetch");
 
 const cliArgument = process.argv[2];
-const PORT = Number.parseInt(cliArgument) ?  cliArgument : 8080;
+const PORT = Number.parseInt(cliArgument) ? cliArgument : 8080;
 
 const express = require('express');
 const app = express();
@@ -15,9 +16,21 @@ app.use(express.json());
 let nodes = [];
 let transactions = [];
 let genesisBlock = new Block();
-// let blockchain = new Blockchain(genesisBlock);
+let blockchain = new Blockchain(genesisBlock);
 
-app.post("/nodes/register", (req,res) => {
+app.get("/resolve", (req, res) => {
+    nodes.forEach(node => {
+        fetch(`${node.url}/blockchain`)
+            .then(res => res.json())
+            .then(otherBlockchain => {
+                if (blockchain.blocks.length < otherBlockchain.blocks.length) {
+                    blockchain = otherBlockchain;
+                }
+            });
+    })
+})
+
+app.post("/nodes/register", (req, res) => {
     const urls = req.body;
     urls.forEach((url) => {
         const node = new BlockchainNode(url);
@@ -43,6 +56,7 @@ app.post("/transactions", (req, res) => {
 app.get("/mine", (req, res) => {
     let block = blockchain.getNextBlock(transactions);
     blockchain.addBlock(block);
+    transactions = [];
     res.json(block);
 });
 
